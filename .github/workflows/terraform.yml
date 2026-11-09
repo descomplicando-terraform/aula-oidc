@@ -1,0 +1,66 @@
+name: terraform
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Sem "id-token: write" o runner não consegue pedir o token OIDC ao GitHub.
+permissions:
+  id-token: write
+  contents: read
+
+# O ARN de uma role NÃO é segredo: sozinho ele não dá acesso a nada.
+# Quem decide quem pode assumir é a trust policy lá na AWS.
+env:
+  AWS_REGION: us-east-1
+  ROLE_PLAN: arn:aws:iam::907079643427:role/linuxtips-oidc-github-plan
+  ROLE_APPLY: arn:aws:iam::907079643427:role/linuxtips-oidc-github-apply
+
+defaults:
+  run:
+    working-directory: infra
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trocar o token OIDC por credenciais temporárias
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_PLAN }}
+          role-session-name: gh-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Quem sou eu?
+        run: aws sts get-caller-identity
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init -input=false
+      - run: terraform plan -input=false
+
+  apply:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trocar o token OIDC por credenciais temporárias
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_APPLY }}
+          role-session-name: gh-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Quem sou eu?
+        run: aws sts get-caller-identity
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve
