@@ -1,0 +1,5 @@
+github_org     = "seu-usuario-ou-org"
+github_repo    = "aula-oidc"
+
+# false se a conta já tem o OIDC provider do GitHub (aws iam list-open-id-connect-providers)
+criar_provider_oidc = true

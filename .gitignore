@@ -2,3 +2,5 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+# valores locais de quem roda o bootstrap (copie do terraform.tfvars.example)
+terraform.tfvars
