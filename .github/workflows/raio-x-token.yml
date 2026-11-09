@@ -1,0 +1,27 @@
+# Workflow didático: mostra o CONTEÚDO (claims) do token OIDC que o GitHub
+# entrega ao runner. Só o payload é impresso — nunca o token inteiro.
+# Rode manualmente em Actions > raio-x-token > Run workflow.
+name: raio-x-token
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  raio-x:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir o token ao GitHub e decodificar o payload
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "::add-mask::$TOKEN"
+
+          # JWT = header.payload.assinatura, em base64url sem padding
+          payload=$(echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="${payload}="; done
+
+          echo "$payload" | base64 -d | jq '{iss, aud, sub, repository, ref, actor, event_name, iat, exp}'
